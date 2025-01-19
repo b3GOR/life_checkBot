@@ -1,0 +1,23 @@
+{
+    "2025-01-17": {
+        "water": {
+            "goal": 0,
+            "Total_day_water": 2100,
+            "Day_water_history": {
+                "2025-01-17 16:26": 800,
+                "2025-01-17 16:27:02": 300,
+                "2025-01-17 16:27:17": 200
+            }
+        },
+        "calory": {
+            "goal": 0,
+            "Total_day_callory": 0,
+            "burned": 0,
+            "Day_food_history": {}
+        },
+        "activity": {
+            "Total_day_activity": 0,
+            "Day_activity_history": {}
+        }
+    }
+}
