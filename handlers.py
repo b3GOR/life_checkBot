@@ -4,10 +4,9 @@ from aiogram.types import Message,InlineKeyboardMarkup,InlineKeyboardButton, Cal
 from aiogram.fsm.context import FSMContext
 import asyncio
 import aiohttp
-from config import API_NUTRITION
 from states import Profile, Day
 from aiogram.enums import ParseMode
-from function import upload_data, edit_day
+from function import upload_data, edit_day, calory
 router = Router()
 
 @router.message(Command('start'))
@@ -177,14 +176,14 @@ async def write_water(message: Message,state:FSMContext):
 
 @router.message(Command('log_food'))
 async def log_food(message: Message,state: FSMContext):
-    await message.answer('Введите продукт/блюдо и количество его грамм')
-    await state.set_state(Day.callory)
-@router.message(Day.callory)
+    await message.answer('Введите продукт/блюдо и количество его количество')
+    await state.set_state(Day.calory)
+@router.message(Day.calory)
 async def write_calory(message: Message,state: FSMContext):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(f'https://api.api-ninjas.com/v1/nutrition?query={message.text}',headers={'X-Api-Key': f'{API_NUTRITION}'}) as request:
-            response = request.json()['calories']
-    await state.update_data(callory=float(response))
+    answer,calory_food = calory(food=message.text.split()[0],quantity=message.text.split()[1],unity=message.text.split()[2])
+    await message.answer(answer)
+    await state.update_data(calory=int(''.join(calory_food)))
+    await state.update_data(Day_calory_history=message.text)
     await edit_day(message.from_user.id,message.date,'calory',state)
     await message.answer('Данные о еде обновлены')
     await state.clear()

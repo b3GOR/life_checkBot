@@ -1,12 +1,12 @@
 import asyncio
 from handlers import router
-from config import TOKEN
+from config import API_TG
 from aiogram import Bot,Dispatcher
 import logging
 
 logging.basicConfig(level=logging.INFO)
 
-bot = Bot(token=TOKEN)
+bot = Bot(token=API_TG)
 dp = Dispatcher()
 dp.include_router(router)
 
