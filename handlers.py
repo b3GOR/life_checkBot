@@ -3,10 +3,9 @@ from aiogram.filters import Command
 from aiogram.types import Message,InlineKeyboardMarkup,InlineKeyboardButton, CallbackQuery
 from aiogram.fsm.context import FSMContext
 import asyncio
-import aiohttp
 from states import Profile, Day
 from aiogram.enums import ParseMode
-from function import upload_data, edit_day, calory
+from function import upload_data, edit_day,calc_calory,check_progress,burned_calory
 router = Router()
 
 @router.message(Command('start'))
@@ -122,7 +121,7 @@ async def goal(callback_query: CallbackQuery, state: FSMContext):
     await state.update_data(goal=purpose)
     await callback_query.message.answer('Расчет нормы каллорий в день')
     await asyncio.sleep(1)
-    await state.set_state(Profile.callory)
+    await state.set_state(Profile.calory)
     data = await state.get_data()
     level_active= data.get('level_active')
     height = data.get('height')
@@ -147,7 +146,7 @@ async def goal(callback_query: CallbackQuery, state: FSMContext):
     #     [InlineKeyboardButton(text='Оставить', callback_data='stay')],
     #     [InlineKeyboardButton(text='Редактировать', callback_data='edit')]
     # ])
-    await state.update_data(callory = round(callorium))
+    await state.update_data(calory = round(callorium))
     water = round(30 * weight)
     await state.update_data(water=water)
     await upload_data(user_id=callback_query.from_user.id,state=state)
@@ -176,26 +175,86 @@ async def write_water(message: Message,state:FSMContext):
 
 @router.message(Command('log_food'))
 async def log_food(message: Message,state: FSMContext):
-    await message.answer('Введите продукт/блюдо и количество его количество')
+    await message.answer('Введите продукт/блюдо и количество в граммах')
     await state.set_state(Day.calory)
 @router.message(Day.calory)
 async def write_calory(message: Message,state: FSMContext):
-    answer,calory_food = calory(food=message.text.split()[0],quantity=message.text.split()[1],unity=message.text.split()[2])
-    await message.answer(answer)
-    await state.update_data(calory=int(''.join(calory_food)))
-    await state.update_data(Day_calory_history=message.text)
+    gramm = int(message.text.split()[1].replace('г','')) if 'г' in message.text.split()[1] else int(message.text.split()[1])
+    calory,result =  await calc_calory(product=message.text.split()[0],gramm=gramm)
+    await message.answer(result)
+    await state.update_data(calory=calory)
     await edit_day(message.from_user.id,message.date,'calory',state)
     await message.answer('Данные о еде обновлены')
     await state.clear()
 
 
-@router.message(Command('log_activity'))
-async def log_activity(message: Message):
-    pass
+@router.message(Command('log_workout'))
+async def log_activity(message: Message,state:FSMContext):
+    buttons = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='Бег',callback_data='run')],
+        [InlineKeyboardButton(text='Обычная ходьба',callback_data='walk')],
+        [InlineKeyboardButton(text='Силовая тренировка',callback_data='workout')]
+
+    ])
+    await message.answer('Выберите тип активности',reply_markup=buttons)
+    await state.set_state(Day.activity)
+
+@router.callback_query(Day.activity)
+async def run(callback: CallbackQuery,state:FSMContext):
+    await state.update_data(activity=callback.data)
+    if callback.data == 'run':
+        buttons = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='8 км/ч',callback_data='5')],
+        [InlineKeyboardButton(text='9 км/ч',callback_data='5.2')],
+        [InlineKeyboardButton(text='10 км/ч',callback_data='6')],
+        [InlineKeyboardButton(text='11 км/ч',callback_data='6.7')],
+        [InlineKeyboardButton(text='11,5 км/ч',callback_data='7')],
+        [InlineKeyboardButton(text='12 км/ч',callback_data='7.5')],
+        [InlineKeyboardButton(text='13 км/ч',callback_data='8')],
+        [InlineKeyboardButton(text='14 км/ч',callback_data='8.6')],
+        [InlineKeyboardButton(text='15 км/ч',callback_data='9')],
+        [InlineKeyboardButton(text='16 км/ч',callback_data='10')]
+
+    ])
+        await callback.message.answer('Выберите скорость бега',reply_markup=buttons)
+        await state.set_state(Day.speed_activity)
+    else:
+        await callback.message.answer('Введите продолжительность активности')
+        await state.set_state(Day.time_activity) 
+
+        
+
+
+@router.callback_query(Day.speed_activity)
+async def write_speed_activity(callback:CallbackQuery,state:FSMContext):
+    if '.0' in str(float(callback.data)):
+        await state.update_data(speed_activity=int(callback.data))
+    else:
+        await state.update_data(speed_activity=float(callback.data))
+    await callback.message.answer('Введите продолжительность активности')
+    await state.set_state(Day.time_activity)
+    
+
+
+@router.message(Day.time_activity)
+async def time_activity(message: Message,state:FSMContext):
+    await state.update_data(time_activity=int(message.text))
+    res,time,kind_of_activity = await burned_calory(state)
+    await state.update_data(burned=res)
+    await edit_day(message.from_user.id,message.date,'activity',state)
+    await message.answer(f'За {time} минут занятия {kind_of_activity} вы сожгли {res} ккал')
+    await state.clear()
 
 @router.message(Command('check_progress'))
-async def check_progress(message: Message):
-    pass
+async def call_check_progress(message: Message,state:FSMContext):
+    await message.answer('Введите дату за которую хотите посмотреть статистику в формате ГГГГ-ММ-ДД')
+    await state.set_state(Day.date)
+
+@router.message(Day.date)
+async def write_check_progress(message: Message,state:FSMContext):
+    result = await check_progress(message.from_user.id, message.text)
+    await message.answer(result,parse_mode=ParseMode.HTML)
+    await state.clear()
 
 
     

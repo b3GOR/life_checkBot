@@ -16,10 +16,10 @@ class Day(StatesGroup):
     water: int = State()
     food: str = State()
     calory: int = State()
-    activity: int = State()
-    Day_calory_history: str =State()
-    kind_of_activiy: str = State()
-
+    activity: str = State()
+    time_activity: int = State()
+    speed_activity: float = State()
+    burned: int = State()
 
 
 
